@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import './App.css'
 import reactLogo from './assets/react.svg'
@@ -6,9 +7,10 @@ import viteLogo from '/electron-vite.animate.svg'
 
 function App() {
   const [count, setCount] = useState(0)
-
+  const navigate = useNavigate()
   return (
     <>
+      <button onClick={() => navigate('/notch')}>Go to Notch</button>
       <div className="flex justify-center">
         <a href="https://electron-vite.github.io" target="_blank" rel="noreferrer">
           <img src={viteLogo} className="logo" alt="Vite logo" />
