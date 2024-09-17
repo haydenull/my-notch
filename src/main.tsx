@@ -6,6 +6,8 @@ import App from './App.tsx'
 import './index.css'
 import Notch from './notch/index.tsx'
 
+console.log('main.tsx executed')
+
 const router = createHashRouter([
   {
     path: '/',

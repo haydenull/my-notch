@@ -1,7 +1,7 @@
 {
   "name": "my-notch",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite && pnpm watch-tailwind",
@@ -18,6 +18,7 @@
     ]
   },
   "dependencies": {
+    "ahooks": "^3.8.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.13",
     "jotai": "^2.9.3",

@@ -42,8 +42,11 @@ export const windowManager = {
     } else if (VITE_DEV_SERVER_URL) {
       win.loadURL(options.route ? `${VITE_DEV_SERVER_URL}#${options.route}` : VITE_DEV_SERVER_URL)
     } else {
-      // win.loadFile('dist/index.html')
-      win.loadFile(path.join(RENDERER_DIST, options.route ? `index.html#${options.route}` : 'index.html'))
+      win.loadFile(path.join(RENDERER_DIST, 'index.html')).then(() => {
+        if (options.route) {
+          win.webContents.executeJavaScript(`window.location.hash = '${options.route}';`)
+        }
+      })
     }
 
     return win

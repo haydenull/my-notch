@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { app, BrowserWindow, screen, ipcMain } from 'electron'
+import { app, BrowserWindow, screen, ipcMain, powerMonitor, dialog } from 'electron'
 import ky from 'ky'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -47,14 +47,16 @@ function createNotchWindow() {
     width: NOTCH_NORMAL_SIZE.width,
     height: NOTCH_NORMAL_SIZE.height,
     resizable: false,
-    alwaysOnTop: true,
     enableLargerThanScreen: true,
     hasShadow: false,
     roundedCorners: false,
+    hiddenInMissionControl: true,
   })
   notchWin.setVisibleOnAllWorkspaces(true)
-  // 打开独立窗口调试器
-  notchWin.webContents.openDevTools({ mode: 'detach' })
+  // 只在开发模式下打开独立窗口调试器
+  if (process.env.NODE_ENV === 'development') {
+    notchWin.webContents.openDevTools({ mode: 'detach' })
+  }
 
   const getHorizontalCenterPosition = (winWidth: number) => {
     const { width: screenWidth } = screen.getPrimaryDisplay().bounds
@@ -68,6 +70,7 @@ function createNotchWindow() {
   let isDetailScreen = false
   let leaveDetailScreenTimeout: NodeJS.Timeout | null = null
   ipcMain.on('enter-detail-screen', () => {
+    console.log('main-process: enter-detail-screen')
     if (leaveDetailScreenTimeout) {
       clearTimeout(leaveDetailScreenTimeout)
       leaveDetailScreenTimeout = null
@@ -80,6 +83,7 @@ function createNotchWindow() {
     }
   })
   ipcMain.on('leave-detail-screen', () => {
+    console.log('main-process: leave-detail-screen')
     if (leaveDetailScreenTimeout) {
       clearTimeout(leaveDetailScreenTimeout)
     }
@@ -101,7 +105,7 @@ function createNotchWindow() {
     return { x, y: Y_POSITION, width, height }
   }
   // 增加或减少 normal 宽度
-  ipcMain.on('update-notch-width', (event, action: { position: 'left' | 'right'; width: number }) => {
+  ipcMain.on('update-notch-width', (event, action: { position: 'left' | 'right'; width: number; from: string }) => {
     console.log('main-process: update-notch-width', action)
     if (action.position === 'left') {
       extraWidth.left = extraWidth.left + action.width
@@ -110,6 +114,14 @@ function createNotchWindow() {
     }
     notchWin.setBounds(getNormalBounds(), true)
   })
+
+  // 从休眠中唤醒后，检查当前窗口状态重新定位
+  // powerMonitor.on('resume', () => {
+  //   console.log('main-process: resume')
+  //   setTimeout(() => {
+  //     notchWin.setBounds(getNormalBounds())
+  //   }, 1000)
+  // })
 }
 
 app.on('activate', () => {
@@ -132,16 +144,47 @@ const getInProgressPomodoroInfo = async () => {
 }
 
 /** 开启番茄钟信息轮询 */
+let pomodoroPollingInterval: NodeJS.Timeout | null = null
+
 const startPomodoroInfoPolling = () => {
-  setInterval(
+  if (pomodoroPollingInterval) {
+    clearInterval(pomodoroPollingInterval)
+  }
+
+  pomodoroPollingInterval = setInterval(
     () => {
       getInProgressPomodoroInfo().then((info) => {
+        console.log('main-process: in-progress-pomodoro-info', info)
         windowManager.getWindow(WindowEnum.Notch)?.webContents.send('in-progress-pomodoro-info', info)
+        if (info.isInPomodoro === false) {
+          dialog
+            .showMessageBox({
+              message: '没有正在进行的番茄钟，请在 Apple Watch 上开始一个番茄钟',
+              type: 'info',
+              buttons: ['知道了', '关闭番茄钟'],
+            })
+            .then(({ response }) => {
+              if (response === 1) {
+                // 用户点击了"关闭番茄钟"
+                stopPomodoroInfoPolling()
+                windowManager.getWindow(WindowEnum.Notch)?.webContents.send('close-pomodoro')
+              }
+            })
+        }
       })
     },
     2 * 60 * 1000,
   )
 }
+
+const stopPomodoroInfoPolling = () => {
+  if (pomodoroPollingInterval) {
+    clearInterval(pomodoroPollingInterval)
+    pomodoroPollingInterval = null
+    console.log('番茄钟轮询已停止')
+  }
+}
+
 ipcMain.handle('get-in-progress-pomodoro-info', getInProgressPomodoroInfo)
 
 app.whenReady().then(() => {
