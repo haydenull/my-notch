@@ -11,9 +11,9 @@ import useInProgressPomodoro from './useInProgressPomodoro'
 
 dayjs.extend(duration)
 
-const WIDTH = 70
+const WIDTH = 64
 
-const PomodoroInfo = () => {
+const PomodoroNotificationItem = () => {
   const info = useInProgressPomodoro()
   const { addNotificationItem, removeNotificationItem } = useNotificationItems()
   const [pomodoroInfo, setPomodoroInfo] = useState({
@@ -54,7 +54,10 @@ const PomodoroInfo = () => {
       } else {
         // 根据屏幕模式设置不同的时间格式
         setPomodoroInfo({
-          remainingTime: screenMode === 'detail' ? remaining.format('mm:ss') : remaining.format('mm:--'),
+          remainingTime:
+            remaining.asMinutes() < 1 || screenMode === 'detail'
+              ? remaining.format('mm:ss')
+              : remaining.format('mm:--'),
           type: info.latestPomodoro.type,
         })
       }
@@ -71,7 +74,6 @@ const PomodoroInfo = () => {
   // 监听关闭番茄钟事件
   useEffect(() => {
     const handleClosePomodoro = () => {
-      removeNotificationItem('pomodoro')
       setIsPomodoroFeatureOpen(false)
     }
     window.ipcRenderer.on('close-pomodoro', handleClosePomodoro)
@@ -79,12 +81,22 @@ const PomodoroInfo = () => {
       window.ipcRenderer.off('close-pomodoro', handleClosePomodoro)
     }
   }, [removeNotificationItem])
+  // 监听打开番茄钟事件
+  useEffect(() => {
+    const handleOpenPomodoro = () => {
+      setIsPomodoroFeatureOpen(true)
+    }
+    window.ipcRenderer.on('open-pomodoro', handleOpenPomodoro)
+    return () => {
+      window.ipcRenderer.off('open-pomodoro', handleOpenPomodoro)
+    }
+  }, [])
 
   if (!showPomodoroInfo) return null
 
   return (
     <div
-      className={cn('flex h-full items-center justify-end overflow-hidden bg-black text-sm', {
+      className={cn('flex h-full items-center justify-center overflow-hidden bg-black text-sm', {
         'text-red-500': pomodoroInfo.type === PomodoroTypeEnum.Work,
         'text-green-500': pomodoroInfo.type === PomodoroTypeEnum.Break,
       })}
@@ -95,4 +107,4 @@ const PomodoroInfo = () => {
   )
 }
 
-export default PomodoroInfo
+export default PomodoroNotificationItem

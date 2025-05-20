@@ -105,23 +105,26 @@ function createNotchWindow() {
     return { x, y: Y_POSITION, width, height }
   }
   // 增加或减少 normal 宽度
-  ipcMain.on('update-notch-width', (event, action: { position: 'left' | 'right'; width: number; from: string }) => {
-    console.log('main-process: update-notch-width', action)
-    if (action.position === 'left') {
-      extraWidth.left = extraWidth.left + action.width
-    } else {
-      extraWidth.right = extraWidth.right + action.width
-    }
-    notchWin.setBounds(getNormalBounds(), true)
-  })
+  ipcMain.on(
+    'update-normal-notch-width',
+    (event, action: { position: 'left' | 'right'; width: number; from: string }) => {
+      console.log('main-process: update-normal-notch-width', action)
+      if (action.position === 'left') {
+        extraWidth.left = extraWidth.left + action.width
+      } else {
+        extraWidth.right = extraWidth.right + action.width
+      }
+      notchWin.setBounds(getNormalBounds(), true)
+    },
+  )
 
   // 从休眠中唤醒后，检查当前窗口状态重新定位
-  // powerMonitor.on('resume', () => {
-  //   console.log('main-process: resume')
-  //   setTimeout(() => {
-  //     notchWin.setBounds(getNormalBounds())
-  //   }, 1000)
-  // })
+  powerMonitor.on('resume', () => {
+    console.log('main-process: resume')
+    setTimeout(() => {
+      notchWin.setBounds(getNormalBounds())
+    }, 1000)
+  })
 }
 
 app.on('activate', () => {
@@ -186,6 +189,14 @@ const stopPomodoroInfoPolling = () => {
 }
 
 ipcMain.handle('get-in-progress-pomodoro-info', getInProgressPomodoroInfo)
+ipcMain.handle('request-close-pomodoro', () => {
+  stopPomodoroInfoPolling()
+  windowManager.getWindow(WindowEnum.Notch)?.webContents.send('close-pomodoro')
+})
+ipcMain.handle('request-open-pomodoro', () => {
+  startPomodoroInfoPolling()
+  windowManager.getWindow(WindowEnum.Notch)?.webContents.send('open-pomodoro')
+})
 
 app.whenReady().then(() => {
   createMainWindow()
